@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @ToString
 @Builder
+@Table(name = "users")
 public class User implements UserDetails {
 
     @Id
