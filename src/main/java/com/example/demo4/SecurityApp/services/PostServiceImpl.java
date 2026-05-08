@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,21 +20,20 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService{
 
     private final PostRepository postRepository;
-    private final ModelMapper modelMapper;
 
     @Override
     public List<PostDTO> getAllPosts() {
         return postRepository
                 .findAll()
                 .stream()
-                .map(postEntity -> modelMapper.map(postEntity, PostDTO.class))
+                .map(this::getPostDtobyPost)
                 .collect(Collectors.toList());
     }
 
     @Override
     public PostDTO createNewPost(PostDTO inputPost) {
-        PostEntity postEntity = modelMapper.map(inputPost, PostEntity.class);
-        return modelMapper.map(postRepository.save(postEntity), PostDTO.class);
+        PostEntity postEntity = getPostByPostDto(inputPost);
+        return getPostDtobyPost(postRepository.save(postEntity));
     }
 
     @Override
@@ -41,6 +41,22 @@ public class PostServiceImpl implements PostService{
         PostEntity postEntity = postRepository
                 .findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id "+postId));
-        return modelMapper.map(postEntity, PostDTO.class);
+        return getPostDtobyPost(postEntity);
+    }
+
+    private PostDTO getPostDtobyPost(PostEntity post) {
+        PostDTO dto = new PostDTO();
+        dto.setId(post.getId());
+        dto.setTitle(post.getTitle());
+        dto.setDescription(post.getDescription());
+        return dto;
+    }
+
+    private PostEntity getPostByPostDto(PostDTO dto) {
+        PostEntity entity = new PostEntity();
+        entity.setDescription(dto.getDescription());
+        entity.setId(dto.getId());
+        entity.setTitle(dto.getTitle());
+        return entity;
     }
 }
