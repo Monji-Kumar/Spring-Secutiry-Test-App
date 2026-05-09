@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -26,12 +28,15 @@ public class WebSecurityConfig {
                         .permitAll() // permits all requests that match the endpoints mentioned here
                         .requestMatchers("/posts/**").hasAnyRole(("ADMIN"))
                         .anyRequest().authenticated())
-                .formLogin(Customizer.withDefaults()); // Default Login form behaviour - Login at /login, logout at /logout
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+//                .formLogin(Customizer.withDefaults()); // Default Login form behaviour - Login at /login, logout at /logout
 //                .formLogin(formLoginConfig -> formLoginConfig.loginPage("/newlogin.html")); // Configures custom Login path
 
         return httpSecurity.build();
     }
 
+    //In Memory Service - User for Testing Purposes
     @Bean
     UserDetailsService myInMemoryUserDetailsService() {
         UserDetails normalUser = User.withUsername("monji").password(passwordEncoder().encode("monji123"))
