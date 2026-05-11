@@ -1,0 +1,269 @@
+[1mdiff --git a/src/main/java/com/example/demo4/SecurityApp/config/WebSecurityConfig.java b/src/main/java/com/example/demo4/SecurityApp/config/WebSecurityConfig.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..8291ddb[m
+[1m--- /dev/null[m
+[1m+++ b/src/main/java/com/example/demo4/SecurityApp/config/WebSecurityConfig.java[m
+[36m@@ -0,0 +1,54 @@[m
+[32m+[m[32mpackage com.example.demo4.SecurityApp.config;[m
+[32m+[m
+[32m+[m[32mimport org.springframework.context.annotation.Bean;[m
+[32m+[m[32mimport org.springframework.context.annotation.Configuration;[m
+[32m+[m[32mimport org.springframework.security.config.Customizer;[m
+[32m+[m[32mimport org.springframework.security.config.annotation.web.builders.HttpSecurity;[m
+[32m+[m[32mimport org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;[m
+[32m+[m[32mimport org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;[m
+[32m+[m[32mimport org.springframework.security.config.http.SessionCreationPolicy;[m
+[32m+[m[32mimport org.springframework.security.core.userdetails.User;[m
+[32m+[m[32mimport org.springframework.security.core.userdetails.UserDetails;[m
+[32m+[m[32mimport org.springframework.security.core.userdetails.UserDetailsService;[m
+[32m+[m[32mimport org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;[m
+[32m+[m[32mimport org.springframework.security.crypto.password.PasswordEncoder;[m
+[32m+[m[32mimport org.springframework.security.provisioning.InMemoryUserDetailsManager;[m
+[32m+[m[32mimport org.springframework.security.web.SecurityFilterChain;[m
+[32m+[m
+[32m+[m[32m@Configuration[m
+[32m+[m[32m@EnableWebSecurity[m
+[32m+[m[32mpublic class WebSecurityConfig {[m
+[32m+[m
+[32m+[m[32m    @Bean[m
+[32m+[m[32m    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {[m
+[32m+[m
+[32m+[m[32m        httpSecurity[m
+[32m+[m[32m                .authorizeHttpRequests(auth -> auth[m
+[32m+[m[32m                        .requestMatchers("/posts")[m
+[32m+[m[32m                        .permitAll() // permits all requests that match the endpoints mentioned here[m
+[32m+[m[32m                        .requestMatchers("/posts/**").hasAnyRole(("ADMIN"))[m
+[32m+[m[32m                        .anyRequest().authenticated())[m
+[32m+[m[32m                .csrf(AbstractHttpConfigurer::disable)[m
+[32m+[m[32m                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));[m
+[32m+[m[32m//                .formLogin(Customizer.withDefaults()); // Default Login form behaviour - Login at /login, logout at /logout[m
+[32m+[m[32m//                .formLogin(formLoginConfig -> formLoginConfig.loginPage("/newlogin.html")); // Configures custom Login path[m
+[32m+[m
+[32m+[m[32m        return httpSecurity.build();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    //In Memory Service - User for Testing Purposes[m
+[32m+[m[32m    @Bean[m
+[32m+[m[32m    UserDetailsService myInMemoryUserDetailsService() {[m
+[32m+[m[32m        UserDetails normalUser = User.withUsername("monji").password(passwordEncoder().encode("monji123"))[m
+[32m+[m[32m                .roles("USER").build();[m
+[32m+[m
+[32m+[m[32m        UserDetails adminUser = User.withUsername("admin").password(passwordEncoder().encode("admin")).roles("ADMIN").build();[m
+[32m+[m
+[32m+[m[32m        return new InMemoryUserDetailsManager(normalUser, adminUser);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @Bean[m
+[32m+[m[32m    PasswordEncoder passwordEncoder() {[m
+[32m+[m[32m        return new BCryptPasswordEncoder();[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/main/java/com/example/demo4/SecurityApp/entities/User.java b/src/main/java/com/example/demo4/SecurityApp/entities/User.java[m
+[1mindex 6c3a6cd..55565a4 100644[m
+[1m--- a/src/main/java/com/example/demo4/SecurityApp/entities/User.java[m
+[1m+++ b/src/main/java/com/example/demo4/SecurityApp/entities/User.java[m
+[36m@@ -35,6 +35,13 @@[m [mpublic class User implements UserDetails {[m
+     @Enumerated(EnumType.STRING)[m
+     private Set<Role> roles;[m
+ [m
+[32m+[m[32m    public User(long id, String email, String password, String name) {[m
+[32m+[m[32m        this.email = email;[m
+[32m+[m[32m        this.id = id;[m
+[32m+[m[32m        this.password = password;[m
+[32m+[m[32m        this.name = name;[m
+[32m+[m[32m    }[m
+[32m+[m
+     @Override[m
+     public Collection<? extends GrantedAuthority> getAuthorities() {[m
+         return roles.stream()[m
+[1mdiff --git a/src/main/java/com/example/demo4/SecurityApp/services/JWTService.java b/src/main/java/com/example/demo4/SecurityApp/services/JWTService.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..1a50cc3[m
+[1m--- /dev/null[m
+[1m+++ b/src/main/java/com/example/demo4/SecurityApp/services/JWTService.java[m
+[36m@@ -0,0 +1,46 @@[m
+[32m+[m[32mpackage com.example.demo4.SecurityApp.services;[m
+[32m+[m
+[32m+[m[32mimport com.example.demo4.SecurityApp.entities.User;[m
+[32m+[m[32mimport io.jsonwebtoken.Claims;[m
+[32m+[m[32mimport io.jsonwebtoken.Jwts;[m
+[32m+[m[32mimport io.jsonwebtoken.security.Keys;[m
+[32m+[m[32mimport org.springframework.beans.factory.annotation.Value;[m
+[32m+[m[32mimport org.springframework.stereotype.Service;[m
+[32m+[m
+[32m+[m[32mimport javax.crypto.SecretKey;[m
+[32m+[m[32mimport java.nio.charset.StandardCharsets;[m
+[32m+[m[32mimport java.util.Date;[m
+[32m+[m[32mimport java.util.Set;[m
+[32m+[m
+[32m+[m[32m@Service[m
+[32m+[m[32mpublic class JWTService {[m
+[32m+[m
+[32m+[m[32m    @Value("${jwt.secretKey}")[m
+[32m+[m[32m    private String secretKey;[m
+[32m+[m
+[32m+[m[32m    private SecretKey generateSecertKey() {[m
+[32m+[m[32m        return Keys.hmacShaKeyFor(secretKey.getBytes((StandardCharsets.UTF_8)));[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String generateToken(User user) {[m
+[32m+[m[32m        return Jwts.builder()[m
+[32m+[m[32m                .subject(user.getId().toString())[m
+[32m+[m[32m                .claim("email", user.getEmail())[m
+[32m+[m[32m                .claim("roles", Set.of("ADMIN", "USER"))[m
+[32m+[m[32m                .issuedAt(new Date())[m
+[32m+[m[32m                .expiration(new Date(System.currentTimeMillis() + 1000*60))[m
+[32m+[m[32m                .signWith(generateSecertKey())[m
+[32m+[m[32m                .compact();[m
+[32m+[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public Long getUserIdFromToken(String token) {[m
+[32m+[m[32m        Claims claims = Jwts.parser()[m
+[32m+[m[32m                .verifyWith(generateSecertKey())[m
+[32m+[m[32m                .build()[m
+[32m+[m[32m                .parseSignedClaims(token)[m
+[32m+[m[32m                .getPayload();[m
+[32m+[m
+[32m+[m[32m        return Long.valueOf(claims.getSubject());[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/main/java/com/example/demo4/SecurityApp/services/PostServiceImpl.java b/src/main/java/com/example/demo4/SecurityApp/services/PostServiceImpl.java[m
+[1mindex b25dce4..087bf45 100644[m
+[1m--- a/src/main/java/com/example/demo4/SecurityApp/services/PostServiceImpl.java[m
+[1m+++ b/src/main/java/com/example/demo4/SecurityApp/services/PostServiceImpl.java[m
+[36m@@ -9,6 +9,7 @@[m [mimport lombok.RequiredArgsConstructor;[m
+ import lombok.extern.slf4j.Slf4j;[m
+ import org.modelmapper.ModelMapper;[m
+ import org.springframework.security.core.context.SecurityContextHolder;[m
+[32m+[m[32mimport org.springframework.security.core.parameters.P;[m
+ import org.springframework.stereotype.Service;[m
+ [m
+ import java.util.List;[m
+[36m@@ -19,21 +20,20 @@[m [mimport java.util.stream.Collectors;[m
+ public class PostServiceImpl implements PostService{[m
+ [m
+     private final PostRepository postRepository;[m
+[31m-    private final ModelMapper modelMapper;[m
+ [m
+     @Override[m
+     public List<PostDTO> getAllPosts() {[m
+         return postRepository[m
+                 .findAll()[m
+                 .stream()[m
+[31m-                .map(postEntity -> modelMapper.map(postEntity, PostDTO.class))[m
+[32m+[m[32m                .map(this::getPostDtobyPost)[m
+                 .collect(Collectors.toList());[m
+     }[m
+ [m
+     @Override[m
+     public PostDTO createNewPost(PostDTO inputPost) {[m
+[31m-        PostEntity postEntity = modelMapper.map(inputPost, PostEntity.class);[m
+[31m-        return modelMapper.map(postRepository.save(postEntity), PostDTO.class);[m
+[32m+[m[32m        PostEntity postEntity = getPostByPostDto(inputPost);[m
+[32m+[m[32m        return getPostDtobyPost(postRepository.save(postEntity));[m
+     }[m
+ [m
+     @Override[m
+[36m@@ -41,6 +41,22 @@[m [mpublic class PostServiceImpl implements PostService{[m
+         PostEntity postEntity = postRepository[m
+                 .findById(postId)[m
+                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id "+postId));[m
+[31m-        return modelMapper.map(postEntity, PostDTO.class);[m
+[32m+[m[32m        return getPostDtobyPost(postEntity);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    private PostDTO getPostDtobyPost(PostEntity post) {[m
+[32m+[m[32m        PostDTO dto = new PostDTO();[m
+[32m+[m[32m        dto.setId(post.getId());[m
+[32m+[m[32m        dto.setTitle(post.getTitle());[m
+[32m+[m[32m        dto.setDescription(post.getDescription());[m
+[32m+[m[32m        return dto;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    private PostEntity getPostByPostDto(PostDTO dto) {[m
+[32m+[m[32m        PostEntity entity = new PostEntity();[m
+[32m+[m[32m        entity.setDescription(dto.getDescription());[m
+[32m+[m[32m        entity.setId(dto.getId());[m
+[32m+[m[32m        entity.setTitle(dto.getTitle());[m
+[32m+[m[32m        return entity;[m
+     }[m
+ }[m
+[1mdiff --git a/src/main/resources/application.properties b/src/main/resources/application.properties[m
+[1mindex b1d5f74..a267c04 100644[m
+[1m--- a/src/main/resources/application.properties[m
+[1m+++ b/src/main/resources/application.properties[m
+[36m@@ -9,6 +9,7 @@[m [mspring.jpa.properties.hibernate.format_sql=true[m
+ #security configs[m
+ #spring.security.user.name=monji[m
+ #spring.security.user.password=pass[m
+[31m-jwt.secretKey = ads9f6askj3h4k1hf86asdfiahkjh34a789s6df89ayshkjh3jkh786adsf78ay[m
+[32m+[m[32m#spring.security.user.roles[] = {ADMIN}[m
+[32m+[m[32mjwt.secretKey = ksjcnviaekwuhfxcmnvioh2938787uyihjsadfawfawsdfw23rf23rfew3wef[m
+ [m
+[31m-deploy.env = development[m
+\ No newline at end of file[m
+[32m+[m[32m#deploy.env = development[m
+\ No newline at end of file[m
+[1mdiff --git a/src/main/resources/application.yml b/src/main/resources/application.yml[m
+[1mdeleted file mode 100644[m
+[1mindex 26ad3bf..0000000[m
+[1m--- a/src/main/resources/application.yml[m
+[1m+++ /dev/null[m
+[36m@@ -1,14 +0,0 @@[m
+[31m-spring:[m
+[31m-  security:[m
+[31m-    oauth2:[m
+[31m-      client:[m
+[31m-        registration:[m
+[31m-          google:[m
+[31m-            client-id:[m
+[31m-            client-secret:[m
+[31m-          github:[m
+[31m-            client-id:[m
+[31m-            client-secret:[m
+[31m-          facebook:[m
+[31m-            client-id:[m
+[31m-            client-secret:[m
+[1mdiff --git a/src/test/java/com/example/demo4/SecurityApp/SecurityAppApplicationTests.java b/src/test/java/com/example/demo4/SecurityApp/SecurityAppApplicationTests.java[m
+[1mindex 2a70dd6..e5733e5 100644[m
+[1m--- a/src/test/java/com/example/demo4/SecurityApp/SecurityAppApplicationTests.java[m
+[1m+++ b/src/test/java/com/example/demo4/SecurityApp/SecurityAppApplicationTests.java[m
+[36m@@ -1,28 +1,31 @@[m
+ package com.example.demo4.SecurityApp;[m
+ [m
+[32m+[m
+ import com.example.demo4.SecurityApp.entities.User;[m
+[31m-import com.example.demo4.SecurityApp.services.JwtService;[m
+[32m+[m[32mimport com.example.demo4.SecurityApp.entities.enums.Role;[m
+[32m+[m[32mimport com.example.demo4.SecurityApp.services.JWTService;[m
+ import org.junit.jupiter.api.Test;[m
+ import org.springframework.beans.factory.annotation.Autowired;[m
+ import org.springframework.boot.test.context.SpringBootTest;[m
+ [m
+[32m+[m[32mimport java.util.Set;[m
+[32m+[m
+ @SpringBootTest[m
+ class SecurityAppApplicationTests {[m
+ [m
+ 	@Autowired[m
+[31m-	private JwtService jwtService;[m
+[32m+[m	[32mprivate JWTService jwtService;[m
+ [m
+ 	@Test[m
+ 	void contextLoads() {[m
+ [m
+[31m-		User user = new User(4L, "anuj@gmail.com", "1234", "Anuj");[m
+[32m+[m		[32mUser user = new User(1L, "manoj@gmail.com", "1234", "Manoj Kumar");[m
+ [m
+[31m-		String token = jwtService.generateAccessToken(user);[m
+[32m+[m		[32mString token = jwtService.generateToken(user);[m
+ [m
+ 		System.out.println(token);[m
+ [m
+[31m-		Long id = jwtService.getUserIdFromToken("eyJhbGciOiJIUzM4NCJ9" +[m
+[31m-				".eyJzdWIiOiI0IiwiZW1haWwiOiJhbnVqQGdtYWlsLmNvbSIsInJvbGVzIjpbIlVTRVIiLCJBRE1JTiJdLCJpYXQiOjE3MjE2NTMyNTgsImV4cCI6MTcyMTY1MzMxOH0.fhjAtKv56iN9XsyPxNh6V3rr6Eds9LuWVkqklcRQNzgTq7GY-46TG2LFvyDshiZe");[m
+[32m+[m[32m        Long id = jwtService.getUserIdFromToken(token);[m
+ [m
+ 		System.out.println(id);[m
+ [m
