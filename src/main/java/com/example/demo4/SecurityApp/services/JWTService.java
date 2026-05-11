@@ -1,15 +1,18 @@
 package com.example.demo4.SecurityApp.services;
 
 import com.example.demo4.SecurityApp.entities.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Set;
 
+@Service
 public class JWTService {
 
     @Value("${jwt.secretKey}")
@@ -19,7 +22,7 @@ public class JWTService {
         return Keys.hmacShaKeyFor(secretKey.getBytes((StandardCharsets.UTF_8)));
     }
 
-    public String generateToke(User user) {
+    public String generateToken(User user) {
         return Jwts.builder()
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
@@ -29,5 +32,15 @@ public class JWTService {
                 .signWith(generateSecertKey())
                 .compact();
 
+    }
+
+    public Long getUserIdFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(generateSecertKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return Long.valueOf(claims.getSubject());
     }
 }
