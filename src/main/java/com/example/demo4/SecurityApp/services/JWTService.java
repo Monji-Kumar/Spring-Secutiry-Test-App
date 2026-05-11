@@ -43,4 +43,36 @@ public class JWTService {
 
         return Long.valueOf(claims.getSubject());
     }
+
+    public String generateAccessToken(User user) {
+        return Jwts.builder()
+                .subject(user.getId().toString())
+                .claim("roles", Set.of("ADMIN", "USER"))
+                .claim("type", "ACCESS")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 1000*60*15))
+                .signWith(generateSecertKey())
+                .compact();
+    }
+
+    public String generateRefreshToken(User user) {
+        return Jwts.builder()
+                .subject(user.getId().toString())
+                .claim("roles", Set.of("ADMIN", "USER"))
+                .claim("type", "REFRESH")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 1000*60*60*24*7))
+                .signWith(generateSecertKey())
+                .compact();
+    }
+
+    public String getTokenType(String token) {
+        Claims claim = Jwts.parser()
+                        .verifyWith(generateSecertKey())
+                        .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claim.get("type", String.class);
+    }
 }
