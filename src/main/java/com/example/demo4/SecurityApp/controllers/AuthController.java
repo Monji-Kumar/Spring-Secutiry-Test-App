@@ -31,11 +31,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> loginIn(@RequestBody LoginDto dto, HttpServletRequest request, HttpServletResponse response) {
-        String token = authService.logIn(dto, request);
+        String accessToken = authService.logIn(dto, request, response);
+        return ResponseEntity.ok(accessToken);
+    }
 
-        Cookie cookie = new Cookie("token", token);
-        cookie.setHttpOnly(true);
-        response.addCookie(cookie);
-        return ResponseEntity.ok(token);
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(request, response);
+        return ResponseEntity.ok("Logged Out successFully!!");
     }
 }
