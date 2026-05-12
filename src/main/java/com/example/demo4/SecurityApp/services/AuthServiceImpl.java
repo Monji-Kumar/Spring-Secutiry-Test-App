@@ -29,8 +29,8 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
-    private final SessionRepository sessionRepository;
     private final UserService userService;
+    private final SessionService sessionService;
 
     @Value("${deploy.env}")
     private String deployEnv;
@@ -47,18 +47,10 @@ public class AuthServiceImpl implements AuthService {
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
 
+
             log.info("accessToken : {}", accessToken);
             log.info("refreshToken : {}", refreshToken);
-
-            //remove old session
-            sessionRepository.deleteByUser(user);
-
-            //start new session
-            Session session = new Session();
-            session.setUser(user);
-            session.setRefreshToken(refreshToken);
-            session.setLastUsedAt(LocalDateTime.now());
-            sessionRepository.save(session);
+            sessionService.generateNewSession(user, refreshToken);
 
             Cookie cookie = new Cookie("refresh-token", refreshToken);
 
@@ -92,12 +84,11 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        if(!StringUtils.isBlank(refreshToken)) {
-            Optional<Session> session = sessionRepository.findByRefreshToken(refreshToken);
-            if(session.isPresent()) {
-                sessionRepository.delete(session.get());
-            }
-        }
+        Long userId = jwtService.getUserIdFromToken(refreshToken);
+        User user = userService.findUserById(userId);
+
+        //delete session for this refreshToken and user
+        sessionService.deleteSession(user, refreshToken);
 
         //remove access Cookie
         Cookie accessCookie = new Cookie("access-token", null);
@@ -117,6 +108,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponseDto refreshToken(String refreshToken) {
         Long userId = jwtService.getUserIdFromToken(refreshToken);
+        sessionService.validateSession(refreshToken);
         User user = userService.findUserById(userId);
 
         String accessToken = jwtService.generateAccessToken(user);
