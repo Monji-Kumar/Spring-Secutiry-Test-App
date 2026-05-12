@@ -1,6 +1,7 @@
 package com.example.demo4.SecurityApp.services;
 
 import com.example.demo4.SecurityApp.dto.LoginDto;
+import com.example.demo4.SecurityApp.dto.LoginResponseDto;
 import com.example.demo4.SecurityApp.entities.Session;
 import com.example.demo4.SecurityApp.entities.User;
 import com.example.demo4.SecurityApp.exceptions.ResourceNotFoundException;
@@ -10,6 +11,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,14 +24,19 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
     private final SessionRepository sessionRepository;
+    private final UserService userService;
+
+    @Value("${deploy.env}")
+    private String deployEnv;
 
     @Override
-    public String logIn(LoginDto dto, HttpServletRequest request, HttpServletResponse response) {
+    public LoginResponseDto logIn(LoginDto dto, HttpServletRequest request, HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
         if(authentication.isAuthenticated()) {
             User user = (User) authentication.getPrincipal();
@@ -38,6 +46,9 @@ public class AuthServiceImpl implements AuthService {
 
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
+
+            log.info("accessToken : {}", accessToken);
+            log.info("refreshToken : {}", refreshToken);
 
             //remove old session
             sessionRepository.deleteByUser(user);
@@ -53,12 +64,18 @@ public class AuthServiceImpl implements AuthService {
 
             cookie.setHttpOnly(true);
             //to make request https only
-//            cookie.setSecure(true);
+            cookie.setSecure("production".equals(deployEnv));
 
-            cookie.setMaxAge(7*60*60*24);
+//            cookie.setMaxAge(7*60*60*24);
             response.addCookie(cookie);
 
-            return accessToken;
+            LoginResponseDto loginResponseDto = new LoginResponseDto();
+            loginResponseDto.setId(user.getId());
+            loginResponseDto.setRefreshToken(refreshToken);
+            loginResponseDto.setAccessToken(accessToken);
+            return loginResponseDto;
+
+
         } else {
             throw new BadCredentialsException("Bad Credentials - No User Found");
         }
@@ -95,5 +112,19 @@ public class AuthServiceImpl implements AuthService {
         refreshCookie.setMaxAge(0);
         refreshCookie.setHttpOnly(true);
         response.addCookie(refreshCookie);
+    }
+
+    @Override
+    public LoginResponseDto refreshToken(String refreshToken) {
+        Long userId = jwtService.getUserIdFromToken(refreshToken);
+        User user = userService.findUserById(userId);
+
+        String accessToken = jwtService.generateAccessToken(user);
+
+        LoginResponseDto dto = new LoginResponseDto();
+        dto.setId(user.getId());
+        dto.setRefreshToken(refreshToken);
+        dto.setAccessToken(accessToken);
+        return dto;
     }
 }
