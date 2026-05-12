@@ -49,4 +49,14 @@ public class UserServiceImpl implements UserService {
     public User findUserById(Long id) {
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("No User found with the given Id - " + id));
     }
+
+    @Override
+    public User findUserByEmail(String email) {
+        return userRepository.findByEmail(email).orElse(null);
+    }
+
+    @Override
+    public User saveOrUpdateUser(User user) {
+        return userRepository.save(user);
+    }
 }

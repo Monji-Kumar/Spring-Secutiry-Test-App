@@ -1,6 +1,7 @@
 package com.example.demo4.SecurityApp.config;
 
 import com.example.demo4.SecurityApp.filters.JwtAuthFilter;
+import com.example.demo4.SecurityApp.handlers.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,19 +27,23 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
 
         httpSecurity
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/posts","/auth/**")
+                        .requestMatchers("/posts","/auth/**","/home.html")
                         .permitAll() // permits all requests that match the endpoints mentioned here
 //                        .requestMatchers("/posts/**").hasAnyRole(("ADMIN"))
                         .anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oAuth2Config -> oAuth2Config
+                        .failureUrl("/login?error=true")
+                        .successHandler(oAuth2SuccessHandler));
 //                .formLogin(Customizer.withDefaults()); // Default Login form behaviour - Login at /login, logout at /logout
 //                .formLogin(formLoginConfig -> formLoginConfig.loginPage("/newlogin.html")); // Configures custom Login path
 

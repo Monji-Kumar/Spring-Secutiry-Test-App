@@ -13,4 +13,8 @@ public interface UserService extends UserDetailsService {
     UserDetails loadUserByUsername(String username);
 
     User findUserById(Long id);
+
+    User findUserByEmail(String email);
+
+    User saveOrUpdateUser(User user);
 }
