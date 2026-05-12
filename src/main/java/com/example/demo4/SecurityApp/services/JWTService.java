@@ -58,8 +58,6 @@ public class JWTService {
     public String generateRefreshToken(User user) {
         return Jwts.builder()
                 .subject(user.getId().toString())
-                .claim("roles", Set.of("ADMIN", "USER"))
-                .claim("type", "REFRESH")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 1000*60*60*24*7))
                 .signWith(generateSecertKey())
