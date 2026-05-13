@@ -1,10 +1,12 @@
 package com.example.demo4.SecurityApp.config;
 
+import com.example.demo4.SecurityApp.entities.enums.Role;
 import com.example.demo4.SecurityApp.filters.JwtAuthFilter;
 import com.example.demo4.SecurityApp.handlers.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -29,14 +31,18 @@ public class WebSecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
+    private final String[] publicRoutes= {"/auth/**","/home.html"};
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
 
         httpSecurity
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/posts","/auth/**","/home.html")
+                        .requestMatchers(publicRoutes)
                         .permitAll() // permits all requests that match the endpoints mentioned here
 //                        .requestMatchers("/posts/**").hasAnyRole(("ADMIN"))
+                        .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/posts/**").hasAnyRole(Role.ADMIN.name(), Role.CREATOR.name())
                         .anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
