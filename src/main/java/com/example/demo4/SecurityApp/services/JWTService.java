@@ -26,7 +26,7 @@ public class JWTService {
         return Jwts.builder()
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
-                .claim("roles", Set.of("ADMIN", "USER"))
+                .claim("roles", user.getRoles())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 1000*60))
                 .signWith(generateSecertKey())
@@ -47,7 +47,7 @@ public class JWTService {
     public String generateAccessToken(User user) {
         return Jwts.builder()
                 .subject(user.getId().toString())
-                .claim("roles", Set.of("ADMIN", "USER"))
+                .claim("roles", user.getRoles())
                 .claim("type", "ACCESS")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 1000*60*15))
