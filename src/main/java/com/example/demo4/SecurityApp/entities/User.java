@@ -52,6 +52,7 @@ public class User implements UserDetails {
         roles.forEach(role -> {
             Set<SimpleGrantedAuthority> permissions = PermissionMapping.getAuthoritiesOfRole(role);
             authorities.addAll(permissions);
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
         });
 
         return authorities;
